@@ -1,0 +1,40 @@
+#!/bin/bash
+
+
+
+files=`ls | grep '.txt$'`
+
+
+
+if [ "$#" -lt 1 ]
+
+then
+
+        echo "Insert name of file!"
+
+        exit 1
+
+elif [ "$#" -gt 1 ]
+
+then
+
+        echo "Too many input arguments!"
+
+fi
+
+
+
+for file in $files
+
+do
+
+        if [ -r "$file" ] && [ ! -w "$file" ] && [ ! -x "$file" ]
+
+        then
+
+                cat "$file" >> "total.txt"
+
+        fi
+
+done
+

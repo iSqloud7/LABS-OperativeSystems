@@ -1,0 +1,70 @@
+nano script.sh
+
+(EDITOR)
+
+#!/bin/bash
+
+vremetraenje=$@
+
+counter=0
+
+sum=0
+
+average=0
+
+
+
+for i in $vremetraenja
+
+do
+
+   if [ $counter -lt 3 ]
+
+   then
+
+       if [ $counter -lt 3 ]
+
+      then
+
+         sum=$(( $sum + $i ))
+
+         counter=$(( $counter + 1 ))
+
+      fi
+
+done
+
+
+
+average=$(( $sum  /  $counter * 60 ))
+
+echo "Average execution time: $average"
+
+echo "Count of executions: $#"
+
+
+
+if [ "$#" -ge 5 ]
+
+then
+
+   echo "The testing is done"
+
+else
+
+   echo "More testing is needed"
+
+fi
+
+------------------------------------------
+
+$chmod +x script.sh
+
+$ ./script.sh 5 7 15 8 22 6
+
+или
+
+$ bash 5 7 15 8 22 6
+
+
+
