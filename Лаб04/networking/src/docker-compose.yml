@@ -1,0 +1,47 @@
+version: '3.8'
+services:
+  serverudp:
+    build:
+      context: .
+      dockerfile: C:\Users\Ivan\Desktop\lab\networking\src\DockerfileUDPServer
+    ports:
+      - "7000:7000"
+    networks:
+      - server-client-private-network-udp
+    deploy:
+      replicas: 1
+
+  clientudp:
+    build:
+      context: .
+      dockerfile: C:\Users\Ivan\Desktop\lab\networking\src\DockerfileUDPClient
+    networks:
+      - server-client-private-network-udp
+    deploy:
+      replicas: 5
+
+  servertcp:
+    build:
+      context: .
+      dockerfile: C:\Users\Ivan\Desktop\lab\networking\src\DockerfileTCPServer
+    ports:
+      - "8000:8000"
+    networks:
+      - server-client-private-network-tcp
+    deploy:
+      replicas: 1
+
+  clienttcp:
+    build:
+      context: .
+      dockerfile: C:\Users\Ivan\Desktop\lab\networking\src\DockerfileTCPClient
+    networks:
+      - server-client-private-network-tcp
+    deploy:
+      replicas: 5
+
+networks:
+  server-client-private-network-udp:
+    driver: bridge
+  server-client-private-network-tcp:
+    driver: bridge

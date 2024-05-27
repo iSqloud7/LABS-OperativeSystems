@@ -1,0 +1,254 @@
+======================================================================================================================================================
+package TCP;
+
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class TCPServer extends Thread {
+
+    private int serverPort;
+    private static int messageCount = 0;
+
+    public TCPServer(int serverPort) {
+        this.serverPort = serverPort;
+    }
+
+    public static synchronized void incrementMessageCount() {
+        messageCount++;
+    }
+
+    public static synchronized int getMessageCount() {
+        return messageCount;
+    }
+
+    @Override
+    public void run() {
+        System.out.println("Server is starting...");
+
+        try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
+            System.out.println("Server is started!!!");
+            System.out.println("===(Waiting for clients...)===");
+
+            while (true) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.printf("New client connected: %s:%d\n", clientSocket.getInetAddress(), clientSocket.getPort());
+                    System.out.println("==================================================");
+
+                    new WorkerThread(clientSocket).start();
+                } catch (IOException e) {
+                    System.out.println("Error accepting client connection: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Socket server failed to start: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        TCPServer tcpServer = new TCPServer(7000);
+        tcpServer.start();
+    }
+}
+======================================================================================================================================================
+package TCP;
+
+import java.io.*;
+import java.net.Socket;
+import java.util.Scanner;
+
+public class TCPClient extends Thread {
+
+    private String serverName;
+    private int serverPort;
+
+    public TCPClient(String serverName, int serverPort) {
+        this.serverName = serverName;
+        this.serverPort = serverPort;
+    }
+
+    @Override
+    public void run() {
+        try (Socket clientSocket = new Socket(serverName, serverPort);
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             Scanner scanner = new Scanner(System.in)) {
+            System.out.println("Enter message: ");
+            String message = scanner.nextLine();
+            System.out.println("Sending login message to the server...");
+            System.out.println("==================================================");
+
+            writer.println(message);
+            writer.flush();
+
+            String response = reader.readLine();
+            System.out.println("Got message from server: " + response);
+            if ("logged in".equals(response)) {
+                while (true) {
+                    System.out.println("Enter message: ");
+                    message = scanner.nextLine();
+
+                    writer.println(message);
+                    writer.flush();
+
+                    response = reader.readLine();
+                    System.out.println("Response from server: " + response);
+
+//                if ("logout".equals(message)) {
+//                    System.out.println("Logout message sent. Client is shutting down...");
+//                    break;
+//                }
+                    if ("logged out".equals(response)) {
+                        break;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Client error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+        public static void main(String[] args) {
+        TCPClient tcpClient = new TCPClient("localhost", 7000);
+        tcpClient.start();
+    }
+}
+
+======================================================================================================================================================
+package TCP;
+
+import java.io.*;
+import java.net.Socket;
+
+public class WorkerThread extends Thread {
+
+    private Socket socket;
+
+    public WorkerThread(Socket socket) {
+        this.socket = socket;
+    }
+
+    @Override
+    public void run() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)) {
+
+            String message = reader.readLine();
+            if ("login".equals(message)) {
+                writer.println("logged in");
+                writer.flush();
+                TCPServer.incrementMessageCount();
+                System.out.println("Received from client: " + message);
+                System.out.println("Total messages received: " + TCPServer.getMessageCount());
+
+
+                while (true) {
+                    System.out.println("==================================================");
+                    message = reader.readLine();
+                    if (message == null) break;
+                    TCPServer.incrementMessageCount();
+                    System.out.println("Received from client: " + message);
+                    System.out.println("Total messages received: " + TCPServer.getMessageCount());
+                    if ("logout".equals(message)) {
+                        writer.println("logged out");
+                        writer.flush();
+
+                        break;
+                    } else {
+                        writer.println("echo: " + message);
+                        writer.flush();
+                    }
+                }
+            } else {
+                writer.println("Connection closed. Invalid login message.");
+                writer.flush();
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+======================================================================================================================================================
+
+package UDP;
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
+
+public class UDPServer extends Thread {
+
+    private DatagramSocket datagramSocket;
+    private byte[] buffer;
+
+    public UDPServer(DatagramSocket datagramSocket) {
+        this.datagramSocket = datagramSocket;
+        this.buffer = new byte[256];
+        System.out.println("Server initialized on port: " + datagramSocket.getLocalPort());
+    }
+
+    @Override
+    public void run() {
+        DatagramPacket datagramPacket;
+        System.out.println("Server is running and waiting for messages...");
+        System.out.println("==================================================");
+        while (true) {
+            try {
+                // Receive message
+                datagramPacket = new DatagramPacket(buffer, buffer.length);
+                datagramSocket.receive(datagramPacket);
+                String receivedMessage = new String(datagramPacket.getData(), 0, datagramPacket.getLength());
+                System.out.println("Server received: " + receivedMessage);
+
+                // Generating response message
+                String responseMessage;
+                if ("login".equals(receivedMessage)) {
+                    responseMessage = "logged in";
+                } else if ("logout".equals(receivedMessage)) {
+                    responseMessage = "loggedout";
+                } else {
+                    responseMessage = receivedMessage;
+                }
+
+                // Send response
+                byte[] responseBuffer = responseMessage.getBytes();
+                DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, datagramPacket.getAddress(), datagramPacket.getPort());
+                datagramSocket.send(responsePacket);
+                // System.out.println("Response sent: " + responsePacket);
+
+                // Loop break when logout message is received
+                if ("logout".equals(receivedMessage)) {
+                    System.out.println("Logout message received. Server is shutting down...");
+                    break;
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        datagramSocket.close();
+    }
+
+    public static void main(String[] args) {
+        try {
+            DatagramSocket datagramSocket = new DatagramSocket(9000);
+            UDPServer udpServer = new UDPServer(datagramSocket);
+            udpServer.start();
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+}
+
+======================================================================================================================================================
